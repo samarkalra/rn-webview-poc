@@ -1,115 +1,112 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * Generated with the TypeScript template
- * https://github.com/react-native-community/react-native-template-typescript
- *
- * @format
- */
+import React, {useRef} from 'react';
+import {Button, SafeAreaView, View} from 'react-native';
+import WebView, {WebViewMessageEvent} from 'react-native-webview';
 
-import React from 'react';
-import {
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  useColorScheme,
-  View,
-} from 'react-native';
+const keyName = 'user';
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
-
-const Section: React.FC<{
-  title: string;
-}> = ({children, title}) => {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
+type User = {
+  name: string;
+  age: number;
 };
 
-const App = () => {
-  const isDarkMode = useColorScheme() === 'dark';
+const userData1 = JSON.stringify({name: 'Samar Kalra', age: 24});
+const userData2 = JSON.stringify({name: 'Kalra Samar', age: 42});
 
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
+const App = () => {
+  const webViewRef = useRef<WebView>(null);
+
+  const injectJavaScriptString = `(function () {
+    window.ReactNativeWebView.postMessage(
+      window.sessionStorage.setItem('${keyName}', '${userData1}'),
+    );
+  })();`;
+
+  // this is giving invalid JS error when called from onLoadStart
+  const injectJavaScriptOnLoadStart = () => {
+    webViewRef.current?.injectJavaScript(`(function () {
+      window.ReactNativeWebView.postMessage(
+        window.sessionStorage.setItem('${keyName}', '${userData1}'),
+      );
+    })();`);
+  };
+
+  const injectJavaScriptOnLoadEnd = () => {
+    const script = `(function () {
+      window.ReactNativeWebView.postMessage(
+        window.sessionStorage.getItem('${keyName}'),
+      );
+    })();
+    `;
+
+    webViewRef.current?.injectJavaScript(script);
+  };
+
+  const onMessage = (event: WebViewMessageEvent) => {
+    const dataFromWebView: string | User | undefined = event.nativeEvent.data;
+    if (dataFromWebView !== 'undefined') {
+      const parsedData: User = JSON.parse(dataFromWebView);
+      console.log(parsedData.name, parsedData.age);
+    }
+  };
+
+  const onGetUserFromSessionStorageClick = () => {
+    webViewRef.current?.injectJavaScript(
+      `(function(){
+           window.ReactNativeWebView.postMessage(window.sessionStorage.getItem('${keyName}'))
+        })();`,
+    );
+  };
+
+  const onUpdateNameClick = () => {
+    webViewRef.current?.injectJavaScript(
+      `(function () {
+        window.ReactNativeWebView.postMessage(
+          window.sessionStorage.setItem('${keyName}', '${userData2}'),
+        );
+      })();`,
+    );
   };
 
   return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
+    <SafeAreaView style={{flex: 1}}>
+      <WebView
+        ref={webViewRef}
+        source={{uri: 'https://samarcodes.me'}}
+        startInLoadingState={true}
+        javaScriptEnabled={true}
+        domStorageEnabled={true}
+        injectedJavaScript={injectJavaScriptString}
+        // onLoadStart={() => injectJavaScriptOnLoadStart()}
+        onLoadEnd={() => injectJavaScriptOnLoadEnd()}
+        onMessage={onMessage}
+      />
+
+      <View
+        style={{
+          width: '100%',
+          borderRadius: 8,
+        }}>
+        <Button
+          title="Get user from webview's session storage"
+          color="#8E76DC"
+          onPress={onGetUserFromSessionStorageClick}
+        />
+      </View>
+
+      <View
+        style={{
+          width: '100%',
+          borderRadius: 8,
+          marginTop: 8,
+        }}>
+        <Button
+          title="Update user in session storage"
+          color="#8E76DC"
+          onPress={onUpdateNameClick}
+        />
+      </View>
     </SafeAreaView>
   );
 };
-
-const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
-  },
-});
 
 export default App;
